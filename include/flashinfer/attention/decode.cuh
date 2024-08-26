@@ -721,7 +721,7 @@ template <uint32_t HEAD_DIM, PageStorage page_storage, LogitsPostHook LOGITS_POS
 cudaError_t BatchDecodeWithPagedKVCacheDispatched(
     DTypeQ* q, IdType* q_offset, paged_kv_t<page_storage, DTypeKV, IdType> paged_kv,
     kv_partition_info_t<IdType> kv_partition_info, DTypeOut* o, DTypeOut* tmp_v, float* tmp_s,
-    float* lse, bool* block_valid_mask, uint32_t padded_batch_size, uint32_t num_qo_heads,
+    float* lse, bool* block_valid_mask, uint32_t num_ctas, uint32_t num_qo_heads,
     int32_t window_left, float logits_soft_cap, float sm_scale, float rope_scale, float rope_theta,
     cudaStream_t stream) {
   const float rope_rcp_scale = 1.f / rope_scale;
@@ -748,51 +748,28 @@ cudaError_t BatchDecodeWithPagedKVCacheDispatched(
                                             page_storage, DTypeQ, DTypeKV, DTypeOut, IdType>;
       FLASHINFER_CUDA_CALL(
           cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size));
-      if (tmp_v == nullptr) {
-        // do not use partition-kv kernel
-        bool partition_kv = false;
-        dim3 nblks(padded_batch_size, num_kv_heads);
-        dim3 nthrs(bdx, bdy, bdz);
 
-        void* args[] = {(void*)&q,
-                        (void*)&q_offset,
-                        (void*)&paged_kv,
-                        (void*)&kv_partition_info,
-                        (void*)&o,
-                        (void*)&lse,
-                        (void*)&block_valid_mask,
-                        (void*)&partition_kv,
-                        (void*)&window_left,
-                        (void*)&logits_soft_cap,
-                        (void*)&sm_scale,
-                        (void*)&rope_rcp_scale,
-                        (void*)&rope_rcp_theta};
-        FLASHINFER_CUDA_CALL(
-            cudaLaunchKernel((void*)kernel, nblks, nthrs, args, smem_size, stream));
-      } else {
-        // use partition-kv kernel
-        bool partition_kv = true;
-        void* args[] = {(void*)&q,
-                        (void*)&q_offset,
-                        (void*)&paged_kv,
-                        (void*)&kv_partition_info,
-                        (void*)&tmp_v,
-                        (void*)&tmp_s,
-                        (void*)&block_valid_mask,
-                        (void*)&partition_kv,
-                        (void*)&window_left,
-                        (void*)&logits_soft_cap,
-                        (void*)&sm_scale,
-                        (void*)&rope_rcp_scale,
-                        (void*)&rope_rcp_theta};
-        dim3 nblks(padded_batch_size, num_kv_heads);
-        dim3 nthrs(bdx, bdy, bdz);
-        FLASHINFER_CUDA_CALL(
-            cudaLaunchKernel((void*)kernel, nblks, nthrs, args, smem_size, stream));
-        FLASHINFER_CUDA_CALL(VariableLengthMergeStates(
-            tmp_v, tmp_s, kv_partition_info.chunk_indptr, o, lse,
-            kv_partition_info.batch_size_before_partition, num_qo_heads, HEAD_DIM, stream));
-      }
+      // use partition-kv kernel
+      bool partition_kv = true;
+      void* args[] = {(void*)&q,
+                      (void*)&q_offset,
+                      (void*)&paged_kv,
+                      (void*)&kv_partition_info,
+                      (void*)&tmp_v,
+                      (void*)&tmp_s,
+                      (void*)&block_valid_mask,
+                      (void*)&partition_kv,
+                      (void*)&window_left,
+                      (void*)&logits_soft_cap,
+                      (void*)&sm_scale,
+                      (void*)&rope_rcp_scale,
+                      (void*)&rope_rcp_theta};
+      dim3 nblks(num_ctas);
+      dim3 nthrs(bdx, bdy, bdz);
+      FLASHINFER_CUDA_CALL(cudaLaunchKernel((void*)kernel, nblks, nthrs, args, smem_size, stream));
+      FLASHINFER_CUDA_CALL(VariableLengthMergeStates(
+          tmp_v, tmp_s, kv_partition_info.chunk_indptr, o, lse,
+          kv_partition_info.batch_size_before_partition, num_qo_heads, HEAD_DIM, stream));
     });
   });
   return cudaSuccess;
