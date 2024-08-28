@@ -42,11 +42,12 @@ struct cutlass_dtype<nv_bfloat16> {
 };
 
 template <typename T>
-__global__ void compute_cutlass_group_gemm_args(cutlass::gemm::GemmCoord* all_problems, T** ptr_x,
-                                                T** ptr_w, T** ptr_y, int64_t* ld_x, int64_t* ld_w,
-                                                int64_t* ld_y, T* x, T* w, T* y, int64_t* xy_indptr,
-                                                int64_t* w_indices, size_t d_in, size_t d_out,
-                                                bool w_column_major) {
+__global__ void compute_sm80_cutlass_group_gemm_args(cutlass::gemm::GemmCoord* all_problems,
+                                                     T** ptr_x, T** ptr_w, T** ptr_y, int64_t* ld_x,
+                                                     int64_t* ld_w, int64_t* ld_y, T* x, T* w, T* y,
+                                                     int64_t* xy_indptr, int64_t* w_indices,
+                                                     size_t d_in, size_t d_out,
+                                                     bool w_column_major) {
   int i = blockIdx.x;
   int m = xy_indptr[i + 1] - xy_indptr[i], k = d_in, n = d_out;
   all_problems[i] = cutlass::gemm::GemmCoord(m, n, k);
