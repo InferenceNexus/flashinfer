@@ -36,14 +36,21 @@ enum class GroupGEMMKernelConfig {
 
 class CutlassSegmentGEMMHandler {
  public:
-  void RegisterWorkspace(void* buffer, size_t size) {
-    buffer_ = buffer;
-    workspace_size_in_bytes_ = size;
+  void RegisterWorkspace(void* float_buffer, void* int_buffer, size_t float_buffer_size,
+                         size_t int_buffer_size) {
+    float_buffer_ = float_buffer;
+    int_buffer_ = int_buffer;
+    float_workspace_size_in_bytes_ = float_buffer_size;
+    int_workspace_size_in_bytes_ = int_buffer_size;
   }
 
-  void* GetWorkspace() const { return buffer_; }
+  void* GetFloatWorkspace() const { return float_buffer_; }
 
-  size_t GetWorkspaceSizeInBytes() const { return workspace_size_in_bytes_; }
+  void* GetIntWorkspace() const { return int_buffer_; }
+
+  size_t GetFloatWorkspaceSizeInBytes() const { return float_workspace_size_in_bytes_; }
+
+  size_t GetIntWorkspaceSizeInBytes() const { return int_workspace_size_in_bytes_; }
 
   cudaStream_t GetCUDAStream() const { return stream_; }
 
@@ -54,8 +61,8 @@ class CutlassSegmentGEMMHandler {
   ~CutlassSegmentGEMMHandler() {}
 
  private:
-  void* buffer_;
-  size_t workspace_size_in_bytes_;
+  void *float_buffer_, *int_buffer_;
+  size_t float_workspace_size_in_bytes_, int_workspace_size_in_bytes_;
   cudaStream_t stream_;
 };
 

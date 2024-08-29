@@ -20,9 +20,13 @@
 
 using namespace flashinfer::group_gemm;
 
-void CutlassSegmentGEMMPyTorchWrapper::RegisterWorkspaceBuffer(torch::Tensor workspace_buffer) {
-  handler_->RegisterWorkspace(static_cast<void*>(workspace_buffer.data_ptr()),
-                              workspace_buffer.size(0) * workspace_buffer.element_size());
+void CutlassSegmentGEMMPyTorchWrapper::RegisterWorkspaceBuffer(torch::Tensor float_workspace_buffer,
+                                                               torch::Tensor int_workspace_buffer) {
+  handler_->RegisterWorkspace(
+      static_cast<void*>(float_workspace_buffer.data_ptr()),
+      static_cast<void*>(int_workspace_buffer.data_ptr()),
+      float_workspace_buffer.size(0) * float_workspace_buffer.element_size(),
+      int_workspace_buffer.size(0) * int_workspace_buffer.element_size());
 }
 
 torch::Tensor CutlassSegmentGEMMPyTorchWrapper::Run(torch::Tensor seg_indptr,
@@ -54,6 +58,7 @@ torch::Tensor CutlassSegmentGEMMPyTorchWrapper::Run(torch::Tensor seg_indptr,
     weight_indices = weight_indices.to(torch::kInt64);
   }
 
+  // TODO(Zihao): add fp8 support
   DISPATCH_PYTORCH_DTYPE_TO_CTYPE_FP16(x.scalar_type(), c_type, [&] {
     using cutlass_t = typename cutlass_dtype<c_type>::type;
     auto status = CutlassSegmentGEMMWrapper<cutlass_t>(

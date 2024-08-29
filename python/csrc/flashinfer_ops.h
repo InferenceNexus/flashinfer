@@ -116,14 +116,16 @@ void bmm_fp8(const torch::Tensor& A, const torch::Tensor& B, torch::Tensor& D,
 
 class CutlassSegmentGEMMPyTorchWrapper {
  public:
-  void RegisterWorkspaceBuffer(torch::Tensor workspace_buffer);
+  void RegisterWorkspaceBuffer(torch::Tensor float_workspace_buffer,
+                               torch::Tensor int_workspace_buffer);
 
   torch::Tensor Run(torch::Tensor seg_indptr, torch::Tensor weight_indices, torch::Tensor x,
                     torch::Tensor weight, unsigned int batch_size, bool weight_column_major);
 
-  CutlassSegmentGEMMPyTorchWrapper(torch::Tensor workspace_buffer)
+  CutlassSegmentGEMMPyTorchWrapper(torch::Tensor float_workspace_buffer,
+                                   torch::Tensor int_workspace_buffer)
       : handler_(std::make_shared<flashinfer::group_gemm::CutlassSegmentGEMMHandler>()) {
-    RegisterWorkspaceBuffer(workspace_buffer);
+    RegisterWorkspaceBuffer(float_workspace_buffer, int_workspace_buffer);
   }
 
  private:
