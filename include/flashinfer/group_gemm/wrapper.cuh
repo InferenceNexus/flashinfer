@@ -75,7 +75,7 @@ cudaError_t CutlassSegmentGEMMWrapper(CutlassSegmentGEMMHandler* handler, DTypeI
         allocator.aligned_alloc<DTypeIn*>(batch_size * sizeof(DTypeIn*), 16, "x_data");
     DTypeIn** w_data =
         allocator.aligned_alloc<DTypeIn*>(batch_size * sizeof(DTypeIn*), 16, "w_data");
-    DTypeIn** y_data =
+    DTypeOut** y_data =
         allocator.aligned_alloc<DTypeOut*>(batch_size * sizeof(DTypeOut*), 16, "y_data");
     int64_t* ld_x = allocator.aligned_alloc<int64_t>(batch_size * sizeof(int64_t), 16, "ld_x");
     int64_t* ld_w = allocator.aligned_alloc<int64_t>(batch_size * sizeof(int64_t), 16, "ld_w");
@@ -222,7 +222,7 @@ cudaError_t CutlassSegmentGEMMWrapper(CutlassSegmentGEMMHandler* handler, DTypeI
         allocator.aligned_alloc<DTypeIn*>(batch_size * sizeof(DTypeIn*), 16, "x_data");
     DTypeIn** w_data =
         allocator.aligned_alloc<DTypeIn*>(batch_size * sizeof(DTypeIn*), 16, "w_data");
-    DTypeIn** y_data =
+    DTypeOut** y_data =
         allocator.aligned_alloc<DTypeOut*>(batch_size * sizeof(DTypeOut*), 16, "y_data");
     StrideA* x_stride =
         allocator.aligned_alloc<StrideA>(batch_size * sizeof(StrideA), 16, "x_stride");
