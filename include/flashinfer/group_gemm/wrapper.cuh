@@ -61,6 +61,11 @@ cudaError_t CutlassSegmentGEMMWrapper(CutlassSegmentGEMMHandler* handler, DType*
     return cudaErrorNotSupported;
   }
   if (compute_capacity.first == 8) {
+    if (sizeof(DType) != 2) {
+      std::cerr << "CutlassSegmentGEMMWrapper requires fp16/bf16 data type for compute capability 8.x"
+                << std::endl;
+      return cudaErrorNotSupported;
+    }
     // SM80 grouped gemm
     AlignedAllocator allocator(handler->GetWorkspace(), handler->GetWorkspaceSizeInBytes());
     cutlass::gemm::GemmCoord* problem_sizes_device =
@@ -132,11 +137,13 @@ cudaError_t CutlassSegmentGEMMWrapper(CutlassSegmentGEMMHandler* handler, DType*
     });
   } else {
     // Compute capability >= 9.0
+    // Reference implementation
+    // - https://github.com/NVIDIA/cutlass/blob/f7b19de32c5d1f3cedfc735c2849f12b537522ee/examples/57_hopper_grouped_gemm/57_hopper_grouped_gemm.cu
     using ProblemShape =
         cutlass::gemm::GroupProblemShape<Shape<int, int, int>>;  // <M,N,K> per group
     // TODO(Zihao): dispatch
     using ElementA = cutlass::float_e4m3_t;  // Element type for A matrix operand
-    using ElementB = cutlass::float_e5m2_t;  // Element type for B matrix operand
+    using ElementB = cutlass::float_e4m3_t;  // Element type for B matrix operand
     using ElementC = cutlass::half_t;        // Element type for C and D matrix operands
 
     using LayoutA = cutlass::layout::RowMajor;  // Layout type for A matrix operand
@@ -267,7 +274,111 @@ cudaError_t CutlassSegmentGEMMWrapper(CutlassSegmentGEMMHandler* handler, DType*
     }
 
     // init and allocate memory
+    int64_t total_elements_A = 0;
+    int64_t total_elements_B = 0;
+    int64_t total_elements_C = 0;
+    int64_t total_elements_D = 0;
+
+    for (int32_t i = 0; i < options.groups; ++i) {
+
+      auto problem = options.problem_sizes_host.at(i);
+      auto M = get<0>(problem);
+      auto N = get<1>(problem);
+      auto K = get<2>(problem);
+
+      offset_A.push_back(total_elements_A);
+      offset_B.push_back(total_elements_B);
+      offset_C.push_back(total_elements_C);
+      offset_D.push_back(total_elements_D);
+
+      int64_t elements_A = M * K;
+      int64_t elements_B = K * N;
+      int64_t elements_C = M * N;
+      int64_t elements_D = M * N;
+
+      total_elements_A += elements_A;
+      total_elements_B += elements_B;
+      total_elements_C += elements_C;
+      total_elements_D += elements_D;
+
+      stride_A_host.push_back(cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1}));
+      stride_B_host.push_back(cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1}));
+      stride_C_host.push_back(cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1}));
+      stride_D_host.push_back(cutlass::make_cute_packed_stride(StrideD{}, {M, N, 1}));
+
+    }
+
+    block_A.reset(total_elements_A);
+    block_B.reset(total_elements_B);
+    block_C.reset(total_elements_C);
+    block_D.reset(total_elements_D);
+    block_ref_D.reset(total_elements_D);
+    block_alpha.reset(options.groups);
+    block_beta.reset(options.groups);
     // TODO(Zihao)
+    uint64_t seed = 2020;
+
+    problem_sizes.reset(options.groups);
+    problem_sizes.copy_from_host(options.problem_sizes_host.data());
+
+    //
+    // Assign pointers
+    //
+
+    std::vector<ElementA *> ptr_A_host(options.groups);
+    std::vector<ElementB *> ptr_B_host(options.groups);
+    std::vector<ElementC *> ptr_C_host(options.groups);
+    std::vector<ElementC *> ptr_D_host(options.groups);
+    std::vector<ElementAccumulator *> ptr_alpha_host(options.groups);
+    std::vector<ElementAccumulator *> ptr_beta_host(options.groups);
+
+    for (int32_t i = 0; i < options.groups; ++i) {
+      ptr_A_host.at(i) = block_A.get() + offset_A.at(i);
+      ptr_B_host.at(i) = block_B.get() + offset_B.at(i);
+      ptr_C_host.at(i) = block_C.get() + offset_C.at(i);
+      ptr_D_host.at(i) = block_D.get() + offset_D.at(i);
+      alpha_host.push_back((options.alpha == FLT_MAX) ? static_cast<ElementAccumulator>((rand() % 5) + 1) : options.alpha);
+      beta_host.push_back((options.beta == FLT_MAX) ? static_cast<ElementAccumulator>(rand() % 5) : options.beta);
+      ptr_alpha_host.at(i) = block_alpha.get() + i;
+      ptr_beta_host.at(i) = block_beta.get() + i;
+    }
+
+    ptr_A.reset(options.groups);
+    ptr_A.copy_from_host(ptr_A_host.data());
+
+    ptr_B.reset(options.groups);
+    ptr_B.copy_from_host(ptr_B_host.data());
+
+    ptr_C.reset(options.groups);
+    ptr_C.copy_from_host(ptr_C_host.data());
+
+    ptr_D.reset(options.groups);
+    ptr_D.copy_from_host(ptr_D_host.data());
+
+    stride_A.reset(options.groups);
+    stride_A.copy_from_host(stride_A_host.data());
+
+    stride_B.reset(options.groups);
+    stride_B.copy_from_host(stride_B_host.data());
+
+    stride_C.reset(options.groups);
+    stride_C.copy_from_host(stride_C_host.data());
+
+    stride_D.reset(options.groups);
+    stride_D.copy_from_host(stride_D_host.data());
+
+    alpha_device.reset(options.groups);
+    alpha_device.copy_from_host(ptr_alpha_host.data());
+    beta_device.reset(options.groups);
+    beta_device.copy_from_host(ptr_beta_host.data());
+
+    initialize_block(block_A, seed + 2023);
+    initialize_block(block_B, seed + 2022);
+    initialize_block(block_C, seed + 2021);
+    block_alpha.copy_from_host(alpha_host.data());
+    block_beta.copy_from_host(beta_host.data());
+
+    // Initialize the gemm kernel
 
     Gemm gemm;
 
