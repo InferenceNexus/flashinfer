@@ -58,6 +58,19 @@ using namespace cute;
     __VA_ARGS__                                                     \
   }
 
+/**
+ * Panic wrapper for unwinding CUTLASS errors
+ */
+#define CUTLASS_CHECK(status)                                                                    \
+  {                                                                                              \
+    cutlass::Status error = status;                                                              \
+    if (error != cutlass::Status::kSuccess) {                                                    \
+      std::cerr << "Got cutlass error: " << cutlassGetStatusString(error) << " at: " << __LINE__ \
+                << std::endl;                                                                    \
+      exit(EXIT_FAILURE);                                                                        \
+    }                                                                                            \
+  }
+
 template <typename DTypeIn, typename DTypeOut>
 cudaError_t CutlassSegmentGEMMWrapper(CutlassSegmentGEMMHandler* handler, DTypeIn* x, DTypeIn* w,
                                       DTypeOut* y, int64_t* xy_indptr_d, int64_t* w_indices_d,
@@ -256,11 +269,13 @@ cudaError_t CutlassSegmentGEMMWrapper(CutlassSegmentGEMMHandler* handler, DTypeI
 
     typename Gemm::Arguments arguments;
 
-    arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
-                                         {int(batch_size), problem_sizes_device, nullptr},
-                                         {x_data, x_stride, w_data, w_stride},
-                                         {params, y_data, y_stride, y_data, y_stride},
-                                         hw_info};
+    arguments = typename Gemm::Arguments{
+        cutlass::gemm::GemmUniversalMode::kGrouped,
+        {int(batch_size), problem_sizes_device, nullptr},
+        {const_cast<const DTypeIn**>(x_data), x_stride, const_cast<const DTypeIn**>(w_data),
+         w_stride},
+        {params, const_cast<const DTypeIn**>(y_data), y_stride, y_data, y_stride},
+        hw_info};
 
     compute_sm90_cutlass_group_gemm_args<<<batch_size, 1, 0, stream>>>(
         problem_sizes_device, x_data, w_data, y_data, x_stride, w_stride, y_stride, (DTypeIn*)x,
