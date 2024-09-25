@@ -25,6 +25,7 @@
 #include "cutlass/gemm/kernel/default_gemm_grouped.h"
 #include "cutlass/layout/matrix.h"
 #include "cutlass/numeric_types.h"
+#include "cutlass/util/packed_stride.hpp"
 
 namespace flashinfer {
 
@@ -48,7 +49,7 @@ struct cutlass_dtype<nv_bfloat16> {
 template <>
 struct cutlass_dtype<__nv_fp8_e4m3> {
   using type = cutlass::float_e4m3_t;
-}
+};
 
 template <>
 struct cutlass_dtype<__nv_fp8_e5m2> {
