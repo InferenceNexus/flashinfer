@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.0](https://github.com/flashinfer-ai/flashinfer/compare/v0.1.6...v0.2.0) (2024-09-26)
+
+
+### Features
+
+* add gemma_rmsnorm and gemma_fused_add_rmsnorm ([#477](https://github.com/flashinfer-ai/flashinfer/issues/477)) ([1a6b17e](https://github.com/flashinfer-ai/flashinfer/commit/1a6b17e2b78fc811d50030b9326a4d01f1ff956f))
+* modify group-gemm stage number ([#497](https://github.com/flashinfer-ai/flashinfer/issues/497)) ([52dab1d](https://github.com/flashinfer-ai/flashinfer/commit/52dab1d4a4d7e5d910a8c695de911d979d6f2038))
+
+
+### Bug Fixes
+
+* batch decode kernel redundant store output to gmem ([#505](https://github.com/flashinfer-ai/flashinfer/issues/505)) ([90e42a7](https://github.com/flashinfer-ai/flashinfer/commit/90e42a7307dad08bc1f800efb3d73a3bd22a0824))
+* compatible with torch 2.2 ([#478](https://github.com/flashinfer-ai/flashinfer/issues/478)) ([ac41d1b](https://github.com/flashinfer-ai/flashinfer/commit/ac41d1bdc72ed4614c9eafb8644d45b234260005))
+* remove redundant load ([#495](https://github.com/flashinfer-ai/flashinfer/issues/495)) ([2de16b0](https://github.com/flashinfer-ai/flashinfer/commit/2de16b0f4afbb9d3c5725187ee2f14ef08fa364f))
+* update bmm fp8 test ([#487](https://github.com/flashinfer-ai/flashinfer/issues/487)) ([45eac04](https://github.com/flashinfer-ai/flashinfer/commit/45eac04f9420b2372737d16d51f4d07bf928d293))
+
 ## [0.1.6](https://github.com/flashinfer-ai/flashinfer/compare/v0.1.5...v0.1.6) (2024-08-27)
 
 ### SM75 Support
