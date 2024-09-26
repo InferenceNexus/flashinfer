@@ -59,7 +59,7 @@ torch::Tensor CutlassSegmentGEMMPyTorchWrapper::Run(torch::Tensor seg_indptr,
   }
 
   // TODO(Zihao): add fp8 support
-  DISPATCH_PYTORCH_DTYPE_TO_CTYPE_FP8(x.scalar_type(), c_type, [&] {
+  DISPATCH_PYTORCH_DTYPE_TO_CTYPE(x.scalar_type(), c_type, [&] {
     using cutlass_t = typename cutlass_dtype<c_type>::type;
     auto status = CutlassSegmentGEMMWrapper<cutlass_t>(
         handler_.get(), static_cast<cutlass_t*>(x.data_ptr()),
