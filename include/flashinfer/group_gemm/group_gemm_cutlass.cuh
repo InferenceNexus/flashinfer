@@ -84,9 +84,10 @@ __global__ void compute_sm90_cutlass_group_gemm_args(
   w_ptr[i] = w + (w_indices == nullptr ? i : w_indices[i]) * k * n;
   x_ptr[i] = x + xy_indptr[i] * k;
   y_ptr[i] = y + xy_indptr[i] * n;
+
   x_stride[i] = cutlass::make_cute_packed_stride(StrideA{}, {m, k, 1});
-  w_stride[i] = w_column_major ? cutlass::make_cute_packed_stride(StrideB{}, {n, k, 1})
-                               : cutlass::make_cute_packed_stride(StrideB{}, {k, n, 1});
+  w_stride[i] = w_column_major ? cutlass::make_cute_packed_stride(StrideB{}, {k, n, 1})
+                               : cutlass::make_cute_packed_stride(StrideB{}, {n, k, 1});
   y_stride[i] = cutlass::make_cute_packed_stride(StrideCD{}, {m, n, 1});
 }
 
