@@ -299,7 +299,7 @@ cudaError_t CutlassSegmentGEMMWrapper(CutlassSegmentGEMMHandler* handler, DTypeI
         // Initialize the gemm kernel
         Gemm gemm;
 
-    // Using the arguments, query for extra workspace required for matrix multiplication computation
+        // Using the arguments, query for extra workspace required for matrix multiplication computation
         size_t workspace_size = Gemm::get_workspace_size(arguments);
 
         // Allocate workspace memory
